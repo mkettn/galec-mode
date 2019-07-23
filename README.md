@@ -1,4 +1,6 @@
-XModelicaMode:
+
+XModelicaMode
+===============
 
 This directory contains extensions for Emacs supporting Modelica.
 Modelica is a unified object-oriented language for physical systems modeling
@@ -46,8 +48,7 @@ and add the following lines to your file ~/.emacs
   "Association vector of elements of OO-Browser languages.") 
 
 Modelica mode for Emacs
-=======================
-
+======================
 The aim is to provide basic support as known from many programming
 languages under Emacs. This includes proper indentation, automated
 closing of code blocks, movement by statements and code blocks,
@@ -60,8 +61,8 @@ Ruediger Franke <rfranke@users.sourceforge.net>
 Later additions by Dietmar Winkler
 
 I have updated this quite significantly since the old Modelica-mode did not work some some cases and so on.
-I also removed support for XEmacs. However, this fork can be considered XModelicaMode.
-It also posesses capabilities to edit and navigate in MetaModelica. An extension to the core Modelica language
+I also removed support for XEmacs. However, this fork can be considered XModelicaMode, since it differs quite alot from
+the original. It also posesses capabilities to edit and navigate in MetaModelica. An extension to the core Modelica language
 
 Cheers. If there are any issues raise them here 
 
