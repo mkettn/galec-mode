@@ -183,6 +183,9 @@
   (defvar modelica-mode-abbrev-table nil
     "Abbrev table used while in Modelica mode.")
   (define-abbrev-table 'modelica-mode-abbrev-table ())
+;;; For comments
+  
+  
 
   (if modelica-mode-syntax-table
       ()              ; Do not change the table if it is already set up.
@@ -332,7 +335,7 @@ See also the user variables `modelica-type-keywords', `modelica-start-keywords' 
   (setq
    comment-column 32
    comment-start "// "
-   comment-start-skip "/\\*+ *\\|// *"
+   comment-start-skip "//*"
    comment-end ""
    comment-multi-line nil)
   
