@@ -59,11 +59,13 @@ Originally by
 Ruediger Franke <rfranke@users.sourceforge.net>
 
 Later additions by Dietmar Winkler
-
+*Current author/maintainers note
 I have updated this quite significantly since the old Modelica-mode did not work some some cases and so on.
 I also removed support for XEmacs. However, this fork can be considered XModelicaMode, since it differs quite alot from
 the original. It also posesses capabilities to edit and navigate in MetaModelica. An extension to the core Modelica language
 
-Cheers. If there are any issues raise them here 
+Cheers! 
+
+If there are any issues raise them here, you are a user and like this package leave a star :)  
 
 John
