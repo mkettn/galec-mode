@@ -56,7 +56,7 @@ support for writing comments, and syntax highlighting.
 
 Originally by
 
-Ruediger Franke <rfranke@users.sourceforge.net>
+Ruediger Franke
 Later additions by Dietmar Winkler
 
 Current author/maintainers note
