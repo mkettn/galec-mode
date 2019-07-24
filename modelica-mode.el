@@ -213,7 +213,6 @@
     (define-key modelica-mode-map "\es"	'modelica-show-all-annotations)
     (define-key modelica-mode-map "\eh"	'modelica-hide-all-annotations)
     (define-key modelica-mode-map "\C-c\C-c"	'comment-region)
-    (define-key modelica-mode-map "\e\""       'modelica-indent-for-docstring)
     (define-key modelica-mode-map "\e;"        'modelica-indent-for-comment)
     (define-key modelica-mode-map "\ej"        'modelica-indent-new-comment-line)
     (define-key modelica-mode-map "\ef"        'modelica-forward-statement)
@@ -244,7 +243,6 @@
       "-"
       ("Indent"
        [" - for comment"           modelica-indent-for-comment t]
-       [" - for docstring"         modelica-indent-for-docstring t]
        ["Newline and indent"       modelica-newline-and-indent
         :keys "C-j" :active t]
        ["New comment line"         modelica-indent-new-comment-line t]
@@ -313,7 +311,7 @@ Variables controlling indentation/edit style:
  `modelica-auto-newline' (default nil)
     Non-nil means automatically newline after semicolons and the punctuation
     mark after an end.
- `modelica-indent-nested-functions' (default t)
+ `modelica-indent-nested-classes' (default t)
     Non-nil means nested functions are indented.
  `modelica-tab-always-indent' (default t)
     Non-nil means TAB in Modelica mode should always reindent the current line,
@@ -663,7 +661,7 @@ This puts the mark at the end, and point at the beginning."
 	   (indent-to modelica--extra-indent))
 	  (; Nested functions should be indented
 	   (looking-at modelica-defun-re)
-	   (if (and modelica-indent-nested-functions
+	   (if (and modelica-indent-nested-classes
 		    (eq type 'defun))
 	       (indent-to (+ modelica--extra-indent modelica-indent-level))
 	     (indent-to modelica--extra-indent)))
@@ -1025,7 +1023,7 @@ indent of the current line in parameterlist."
 						 (point))
 			    (forward-char 1)))
 		 (re-search-forward
-		  "\\<type\\>\\|\\<\\(begin\\|function\\|procedure\\)\\>"
+		  "\\<type\\>\\|\\<\\(begin\\|function\\)\\>"
 		  start t)
 		 (not (match-end 1)))
 	    ;; Check current type declaration
@@ -1170,9 +1168,8 @@ indent of the current line in parameterlist."
   "Return function/procedure starting with STR as regular expression.
 With optional second arg non-nil, STR is the complete name of the instruction."
   (if arg
-      (concat "^\\(function\\|procedure\\)[ \t]+\\(" str "\\)\\>")
-    (concat "^\\(function\\|procedure\\)[ \t]+\\(" str "[a-zA-Z0-9_]*\\)\\>")))
-
+      (concat "^\\(function\\|class\\package|\\uniontype|record\\block|connector\\)[ \t]+\\(" str "\\)\\>")
+    (concat "^\\(function\\|class\\package|\\uniontype|record\\block|connector\\)[ \t]+\\(" str "[a-zA-Z0-9_]*\\)\\>")))
 ;; Function passed to completing-read, try-completion or
 ;; all-completions to get completion on any function name. If
 ;; predicate is non-nil, it must be a function to be called for every
@@ -1310,7 +1307,7 @@ Modelica Outline mode provides some additional commands.
       (modelica-outline-change (1- beg) end nil)
       ;; Hide nested functions
       (forward-char 1)
-      (while (re-search-forward "^\\(function\\|procedure\\)\\>" end 'move)
+      (while (re-search-forward "^\\(function\\|class\\package|\\uniontype|record\\block|connector\\)\\>" end 'move)
 	(setq opoint (line-end-position))
 	(modelica-end-of-defun)
 	(modelica-outline-change opoint (line-end-position) t))
@@ -1319,7 +1316,7 @@ Modelica Outline mode provides some additional commands.
       (setq opoint end)
 
       ;; Hide all function after current function
-      (while (re-search-forward "^\\(function\\|procedure\\)\\>" nil 'move)
+      (while (re-search-forward "^\\(function\\|class\\package|\\uniontype|record\\block|connector\\)\\>" nil 'move)
 	(modelica-outline-change opoint (line-end-position 0) t)
 	(setq opoint (line-end-position))
 	(modelica-end-of-defun))
@@ -1350,6 +1347,64 @@ Modelica Outline mode provides some additional commands.
   (interactive)
   (modelica-goto-defun)
   (modelica-hide-other-defuns))
+
+
+(defun modelica-hide-annotations (beg end)
+  "Hide all annotations."
+  (save-excursion
+    (let (beg-hide end-hide)
+      (goto-char beg)
+      (while
+	  (and (< (point) end)
+	       (search-forward-regexp "\\<annotation[ \t\n]*\(" end t))
+	(setq beg-hide (match-end 0))
+	(backward-char)
+	(forward-sexp)
+	(setq end-hide (- (point) 1))
+	(modelica-flag-region beg-hide end-hide t)))))
+
+(defun modelica-show-annotations (beg end)
+  "Show annotations from beg to end"
+  (modelica-flag-region beg end nil))
+
+(defun modelica-hide-all-annotations ()
+  "Hide all annotations"
+  (interactive)
+  (modelica-hide-annotations (point-min) (point-max)))
+
+(defun modelica-hide-annotation ()
+  "Hide annotation of current statement"
+  (interactive)
+  (save-excursion
+    (let (beg end)
+      ;; move to beginning of current statement
+      (modelica-statement-start)
+      (setq beg (point))
+      ;; move to beginning of next statement
+      (modelica-forward-statement)
+      (setq end (point))
+      ;; hide annotations from beg to end
+      (modelica-hide-annotations beg end))))
+
+(defun modelica-show-all-annotations ()
+  "Show all annotations"
+  (interactive)
+  (modelica-show-annotations (point-min) (point-max)))
+
+(defun modelica-show-annotation ()
+  "Show annotation of current statement"
+  (interactive)
+  (save-excursion
+    (let (beg end)
+      ;; move to beginning of current statement
+      (modelica-statement-start)
+      (setq beg (point))
+      ;; move to beginning of next statement
+      (modelica-forward-statement)
+      (setq end (point))
+      ;; show annotations from beg to end
+      (modelica-show-annotations beg end))))
+
 
 (provide 'modelica-mode)
 
