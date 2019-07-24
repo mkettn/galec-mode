@@ -57,8 +57,8 @@ support for writing comments, and syntax highlighting.
 Originally by
 
 Ruediger Franke <rfranke@users.sourceforge.net>
-
 Later additions by Dietmar Winkler
+
 Current author/maintainers note
 ======================
 I have updated this quite significantly since the old Modelica-mode did not work some some cases and so on.
