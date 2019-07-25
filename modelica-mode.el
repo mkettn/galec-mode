@@ -183,10 +183,58 @@
   (defvar modelica-mode-abbrev-table nil
     "Abbrev table used while in Modelica mode.")
   (define-abbrev-table 'modelica-mode-abbrev-table ())
-;;; For comments
-  
-  
 
+
+  (defun modelica-statement-start (&optional ref-point)
+    "Move point to the first character of the current statement;
+   optional argument points to the last end or unended begin"
+    (let ((save-point (point)))
+      (if ref-point
+          ()
+        (condition-case nil
+            (modelica-last-unended-begin t)
+          (error (goto-char (point-min))))
+        (setq ref-point (point))
+        (goto-char save-point))
+      (while (progn
+               (re-search-backward
+                ;; ("]" ")" ";"
+                ;;  "algorithm" "equation" "external"
+                ;;  "else" "elseif" "elsewhen"
+                ;;  "loop" "protected" "public" "then")
+                (concat
+                 "[\]\);]\\|"
+                 "\\<"
+                 "\\(algorithm\\|e\\(lse\\(if\\|when\\)?\\|quation\\|"
+                 "xternal\\)\\|loop\\|p\\(rotected\\|ublic\\)\\|then\\)"
+                 "\\>")
+                ref-point 'no-error)
+               (and
+                (> (point) ref-point)
+                (or (modelica-within-comment t)
+                    (modelica-within-string)
+                    (if (looking-at "[\]\)]")
+                        (progn
+                          (forward-char 1)
+                          (forward-sexp -1)
+                          t))
+                    (if (looking-at ";")
+                        (modelica-within-matrix-expression t)
+                      (modelica-within-equation t))))))
+      (cond
+       ((= (point) ref-point)
+        ;; we arrived at last unended begin,
+        ;; but might be looking for first statement of block
+        (mdc-forward-begin)
+        (forward-comment (- (buffer-size)))
+        (if (> (point) save-point)
+            (goto-char ref-point)))
+       ((looking-at ";")
+        (forward-char 1))
+       (t
+        (forward-word 1)))
+      (forward-comment (buffer-size))))
+ 
   (if modelica-mode-syntax-table
       ()              ; Do not change the table if it is already set up.
     (setq modelica-mode-syntax-table (make-syntax-table))
@@ -200,63 +248,6 @@
     (modify-syntax-entry ?*  ". 23"   modelica-mode-syntax-table)
     (modify-syntax-entry ?\n "> b"    modelica-mode-syntax-table))
 
-  (defvar modelica-mode-map nil
-    "Keymap for Modelica mode.")
-
-  (if modelica-mode-map
-      ()
-    (setq modelica-mode-map (make-sparse-keymap))
-    (define-key modelica-mode-map "\C-j"	'modelica-newline-and-indent)
-    (define-key modelica-mode-map "\C-c\C-e"	'modelica-insert-end)
-    (define-key modelica-mode-map "\C-c\C-s"	'modelica-show-annotation)
-    (define-key modelica-mode-map "\C-c\C-h"	'modelica-hide-annotation)
-    (define-key modelica-mode-map "\es"	'modelica-show-all-annotations)
-    (define-key modelica-mode-map "\eh"	'modelica-hide-all-annotations)
-    (define-key modelica-mode-map "\C-c\C-c"	'comment-region)
-    (define-key modelica-mode-map "\e;"        'modelica-indent-for-comment)
-    (define-key modelica-mode-map "\ej"        'modelica-indent-new-comment-line)
-    (define-key modelica-mode-map "\ef"        'modelica-forward-statement)
-    (define-key modelica-mode-map "\eb"        'modelica-backward-statement)
-    (define-key modelica-mode-map "\en"        'modelica-forward-block)
-    (define-key modelica-mode-map "\ep"        'modelica-backward-block)
-    (define-key modelica-mode-map "\ea"        'modelica-to-block-begin)
-    (define-key modelica-mode-map "\ee"        'modelica-to-block-end))
-
-  (defvar modelica-mode-menu
-    '("Modelica"
-      ("Move to"
-       [" - next statement"        modelica-forward-statement t]
-       [" - previous statement"    modelica-backward-statement t]
-       [" - start of code block"   modelica-to-block-begin t]
-       [" - end of code block"     modelica-to-block-end t]
-       )
-      [" - next code block"        modelica-forward-block t]
-      [" - previous code block"    modelica-backward-block t]
-      "-"
-      ("Annotation"
-       [" - show all"              modelica-show-all-annotations t]
-       [" - hide all"              modelica-hide-all-annotations t]
-       )
-      [" - show current"          modelica-show-annotation t]
-      [" - hide current"          modelica-hide-annotation
-       :keys "C-c C-h" :active t]
-      "-"
-      ("Indent"
-       [" - for comment"           modelica-indent-for-comment t]
-       ["Newline and indent"       modelica-newline-and-indent
-        :keys "C-j" :active t]
-       ["New comment line"         modelica-indent-new-comment-line t]
-       )
-      [" - line"                   indent-for-tab-command t]
-      [" - region"                 indent-region (mark)]
-      "-"
-      ["Comment out region"        comment-region  (mark)]
-      ["Uncomment region"          (comment-region (point) (mark) '(4))
-       :keys "C-u C-c C-c" :active (mark)]
-      "-"
-      ["End code block"            modelica-insert-end t]
-      )
-    "Menu for Modelica mode.")
 
 ;;;
 ;;;  Macros
@@ -1348,6 +1339,15 @@ Modelica Outline mode provides some additional commands.
   (modelica-goto-defun)
   (modelica-hide-other-defuns))
 
+ ;; hide/show annotations
+(make-local-variable 'line-move-ignore-invisible)
+(setq line-move-ignore-invisible t)
+(if (functionp 'add-to-invisibility-spec)
+    (add-to-invisibility-spec '(modelica-annotation . t))
+  ;; XEmacs 21.1 does not know function add-to-invisibility-spec
+  (make-local-variable 'buffer-invisibility-spec)
+  (setq buffer-invisibility-spec '((modelica-annotation . t))))
+
 
 (defun modelica-hide-annotations (beg end)
   "Hide all annotations."
@@ -1405,6 +1405,89 @@ Modelica Outline mode provides some additional commands.
       ;; show annotations from beg to end
       (modelica-show-annotations beg end))))
 
+(defun modelica-discard-overlays (beg end value)
+  (if (< end beg)
+      (setq beg (prog1 end (setq end beg))))
+  (save-excursion
+    (let ((overlays (overlays-in beg end))
+	  o)
+      (while overlays
+	(setq o (car overlays))
+ 	(if (eq (overlay-get o 'invisible) value)
+	    (delete-overlay o))
+	(setq overlays (cdr overlays))))))
+
+(defun modelica-flag-region (from to flag)
+  "Hides or shows lines from FROM to TO, according to FLAG.
+If FLAG is nil then text is shown, while if FLAG is t the text is hidden."
+  (save-excursion
+    (goto-char from)
+    (modelica-discard-overlays from to 'modelica-annotation)
+    (if flag
+	(let ((o (make-overlay from to)))
+	  (overlay-put o 'invisible 'modelica-annotation)
+	  (overlay-put o 'isearch-open-invisible
+		       'modelica-isearch-open-invisible)))))
+
+
+  (defvar modelica-mode-map nil
+    "Keymap for Modelica mode.")
+
+  (if modelica-mode-map ()
+    (setq modelica-mode-map (make-sparse-keymap))
+    (define-key modelica-mode-map "\C-j"	'modelica-newline-and-indent)
+    (define-key modelica-mode-map "\C-c\C-e"	'modelica-insert-end)
+    (define-key modelica-mode-map "\C-c\C-s"	'modelica-show-annotation)
+    (define-key modelica-mode-map "\C-c\C-h"	'modelica-hide-annotation)
+    (define-key modelica-mode-map "\es"	        'modelica-show-all-annotations)
+    (define-key modelica-mode-map "\eh"	        'modelica-hide-all-annotations)
+    (define-key modelica-mode-map "\C-c\C-c"	'comment-region)
+    (define-key modelica-mode-map "\e;"         'modelica-indent-for-comment)
+    (define-key modelica-mode-map "\ej"         'modelica-indent-new-comment-line)
+    (define-key modelica-mode-map "\ef"         'modelica-forward-statement)
+    (define-key modelica-mode-map "\eb"         'modelica-backward-statement)
+    (define-key modelica-mode-map "\en"         'modelica-forward-block)
+    (define-key modelica-mode-map "\ep"         'modelica-backward-block)
+    (define-key modelica-mode-map "\ea"         'modelica-to-block-begin)
+    (define-key modelica-mode-map "\ee"         'modelica-to-block-end))
+
+
+
+  (defvar modelica-mode-menu
+    '("Modelica"
+      ("Move to"
+       [" - next statement"        modelica-forward-statement t]
+       [" - previous statement"    modelica-backward-statement t]
+       [" - start of code block"   modelica-to-block-begin t]
+       [" - end of code block"     modelica-to-block-end t]
+       )
+      [" - next code block"        modelica-forward-block t]
+      [" - previous code block"    modelica-backward-block t]
+      "-"
+      ("Annotation"
+       [" - show all"              modelica-show-all-annotations t]
+       [" - hide all"              modelica-hide-all-annotations t]
+       )
+      [" - show current"          modelica-show-annotation t]
+      [" - hide current"          modelica-hide-annotation
+       :keys "C-c C-h" :active t]
+      "-"
+      ("Indent"
+       [" - for comment"           modelica-indent-for-comment t]
+       ["Newline and indent"       modelica-newline-and-indent
+        :keys "C-j" :active t]
+       ["New comment line"         modelica-indent-new-comment-line t]
+       )
+      [" - line"                   indent-for-tab-command t]
+      [" - region"                 indent-region (mark)]
+      "-"
+      ["Comment out region"        comment-region  (mark)]
+      ["Uncomment region"          (comment-region (point) (mark) '(4))
+       :keys "C-u C-c C-c" :active (mark)]
+      "-"
+      ["End code block"            modelica-insert-end t]
+      )
+    "Menu for Modelica mode.")
 
 (provide 'modelica-mode)
 
