@@ -1,4 +1,4 @@
-;;; galec-mode.el (galec-mode)--- major mode for editing galec files
+;;; galec-mode.el --- major mode for editing galec files
 ;; Copyright (C) 2022       Mark Kettner
 ;; Copyright (C) 2019       John Tinnerholm
 ;; Copyright (C) 2019       Free Software Foundation, Inc
